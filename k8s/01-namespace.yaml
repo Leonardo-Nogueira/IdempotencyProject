@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: idempotency-lab
+  labels:
+    app.kubernetes.io/name: idempotency-lab
+

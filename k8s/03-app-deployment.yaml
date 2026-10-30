@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idempotency-app
+  namespace: idempotency-lab
+  labels:
+    app: idempotency-app
+spec:
+  # 3 Pods (JVMs diferentes!) rodando em paralelo atras do Load Balancer do Kubernetes!
+  # Prova que a deduplicacao via Banco de Dados funciona mesmo distribuida entre multiplos nos/pods!
+  replicas: 3
+  selector:
+    matchLabels:
+      app: idempotency-app
+  template:
+    metadata:
+      labels:
+        app: idempotency-app
+    spec:
+      containers:
+        - name: idempotency-app
+          image: idempotency-lab:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "postgres"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/idempotency_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "postgres"
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: idempotency-app-service
+  namespace: idempotency-lab
+spec:
+  selector:
+    app: idempotency-app
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080
+  type: LoadBalancer
+
